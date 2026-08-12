@@ -1,0 +1,38 @@
+name: Deploy to Production
+
+# main 브랜치에 push되면 운영 서버에 배포합니다.
+# (회사에서 GitLab CI로 하던 것을 GitHub Actions로 옮긴 버전)
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행도 가능
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (워크플로 자체 확인용)
+        uses: actions/checkout@v4
+
+      # 운영 서버에 이미 이 저장소가 git clone 되어 있고,
+      # 서버 안에 PHP/Composer가 설치되어 있다는 전제의 "git pull" 방식입니다.
+      # 운영 서버가 Docker 기반이면 이미지 빌드 후 push/pull하는 방식으로 바꿔야 합니다.
+      - name: SSH로 접속해 배포
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+            git pull origin main
+            composer install --no-dev --optimize-autoloader
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            # 필요하면 웹서버 재시작 명령을 여기에 추가하세요
+            # sudo systemctl reload apache2

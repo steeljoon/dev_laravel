@@ -1,0 +1,18 @@
+# 로컬 환경변수
+.env
+
+# Laravel 프로젝트 (컨테이너 최초 구동 시 자동 생성됨)
+/src/vendor
+/src/node_modules
+/src/.env
+/src/storage/*.key
+/src/storage/logs/*
+/src/storage/framework/cache/*
+/src/storage/framework/sessions/*
+/src/storage/framework/views/*
+/src/bootstrap/cache/*.php
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.vscode/
