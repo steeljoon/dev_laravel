@@ -15,9 +15,9 @@ jobs:
       - name: Checkout (워크플로 자체 확인용)
         uses: actions/checkout@v4
 
-      # 운영 서버에 이미 이 저장소가 git clone 되어 있고,
-      # 서버 안에 PHP/Composer가 설치되어 있다는 전제의 "git pull" 방식입니다.
-      # 운영 서버가 Docker 기반이면 이미지 빌드 후 push/pull하는 방식으로 바꿔야 합니다.
+      # 운영 서버는 Docker Compose 기반(nginx + PHP-FPM + MariaDB)이므로,
+      # 저장소를 pull 받은 뒤 이미지를 재빌드하고 컨테이너 안에서 artisan 명령을 실행합니다.
+      # 서버에 이미 이 저장소가 git clone 되어 있고 .env가 구성되어 있다는 것이 전제입니다.
       - name: SSH로 접속해 배포
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -29,10 +29,8 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
             git pull origin main
-            composer install --no-dev --optimize-autoloader
-            php artisan migrate --force
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            # 필요하면 웹서버 재시작 명령을 여기에 추가하세요
-            # sudo systemctl reload apache2
+            docker compose up -d --build
+            docker compose exec -T app php artisan migrate --force
+            docker compose exec -T app php artisan config:cache
+            docker compose exec -T app php artisan route:cache
+            docker compose exec -T app php artisan view:cache
