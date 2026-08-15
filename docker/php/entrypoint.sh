@@ -45,4 +45,5 @@ fi
 
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
 
-exec apache2-foreground
+# 웹서버는 nginx가 별도 컨테이너로 붙어서 이 프로세스에 요청을 넘겨준다 (FastCGI, 9000번 포트)
+exec php-fpm

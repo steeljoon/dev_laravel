@@ -1,6 +1,6 @@
 # 프로젝트 배경
 
-회사 실무 개발 환경(PHP8 + Laravel, jQuery, Apache, MariaDB, Docker, GitLab)을 개인 로컬 환경에 그대로 재현한 프로젝트입니다. 형상관리만 GitLab 대신 GitHub를 씁니다.
+회사 실무 개발 환경(PHP8 + Laravel, jQuery, 웹서버, MariaDB, Docker, GitLab)을 개인 로컬 환경에 그대로 재현한 프로젝트입니다. 형상관리만 GitLab 대신 GitHub를 씁니다. 웹서버는 처음 Apache로 시작했다가 nginx + PHP-FPM 구조로 바꿨습니다.
 
 ## 위치와 구조
 
@@ -8,14 +8,17 @@
 
 ```
 dev_laravel/
-├── docker-compose.yml       # app(PHP8+Apache+Laravel) + db(MariaDB) 서비스
+├── docker-compose.yml       # nginx + app(PHP8-FPM+Laravel) + db(MariaDB) 3개 서비스
 ├── .env.example              # APP_PORT, DB_* 값 (복사해서 .env로 사용)
 ├── .gitignore
 ├── README.md                 # 실행 방법, 도메인 설정, 배포 설정 안내 전부 포함
-├── docker/php/
-│   ├── Dockerfile            # php:8.2-apache 기반, pdo_mysql/mbstring/gd/zip 등 설치
-│   ├── apache-vhost.conf     # ServerName laravel.test, DocumentRoot -> public/
-│   └── entrypoint.sh         # 컨테이너 기동 시 실행되는 스크립트 (아래 참고)
+├── docker/
+│   ├── php/
+│   │   ├── Dockerfile        # php:8.2-fpm 기반, pdo_mysql/mbstring/gd/zip 등 설치
+│   │   ├── apache-vhost.conf # 예전 Apache 구조 흔적, 지금은 어디서도 참조 안 함
+│   │   └── entrypoint.sh     # 컨테이너 기동 시 실행되는 스크립트 (아래 참고)
+│   └── nginx/
+│       └── default.conf      # ServerName laravel.test, DocumentRoot -> public/, .php는 app:9000으로 fastcgi_pass
 ├── src/                       # Laravel 프로젝트 실체 (컨테이너가 최초 실행될 때 자동 생성됨, git으로 관리)
 └── .github/workflows/deploy.yml   # main push 시 SSH로 운영 서버 배포
 ```
@@ -28,6 +31,7 @@ dev_laravel/
 4. **`SESSION_DRIVER`는 반드시 `file`로 고정** — Laravel 최신 버전 기본값인 `database`로 두면 sessions 테이블 마이그레이션이 기본 스캐폴드에 없어서 500 에러가 나고, `php artisan session:table`로 자동 생성하려 하면 재실행 시 "Migration already exists"로 죽어서 컨테이너가 무한 재시작하는 문제가 있었음. 이 방식으로 근본적으로 회피함.
 5. 매번 `php artisan migrate --force`로 MariaDB에 마이그레이션 적용 (users/cache/jobs 테이블)
 6. jQuery는 CDN 방식으로 `resources/views/welcome.blade.php`에 자동 삽입 (회사 스택과 동일하게 npm/Vite 없이 legacy 방식 사용)
+7. 마지막 줄은 `exec apache2-foreground`가 아니라 `exec php-fpm` — 웹서버(nginx)가 별도 컨테이너로 분리됐기 때문에 이 컨테이너는 PHP-FPM 프로세스만 포그라운드로 띄움
 
 ## 로컬 도메인
 
@@ -39,4 +43,4 @@ dev_laravel/
 
 ## 현재 상태
 
-`docker compose up --build -d`로 정상 기동되고, http://laravel.test 접속 시 Laravel 기본 웰컴 페이지가 정상적으로 뜨는 것까지 확인했습니다. 여기서부터 실제 애플리케이션 코드 작업을 시작하면 됩니다.
+Apache 구조에서는 `docker compose up --build -d` 후 http://laravel.test 접속까지 정상 확인했습니다. 방금 nginx + PHP-FPM 구조로 바꿨는데, 이 변경 이후로는 아직 재빌드/재확인 전입니다. 이 프로젝트를 열면 가장 먼저 `docker compose up --build -d`로 새 이미지를 빌드하고 http://laravel.test 접속이 정상인지, `docker compose logs nginx`와 `docker compose logs app`에 에러가 없는지 확인해 주세요.

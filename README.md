@@ -1,7 +1,7 @@
-# 로컬 개발 환경 (PHP8 + Laravel + Apache + MariaDB)
+# 로컬 개발 환경 (PHP8 + Laravel + Nginx + MariaDB)
 
-회사 실무 스택(PHP8 + Laravel 컨테이너, Apache, MariaDB)을 로컬 Docker 환경으로 재현한 프로젝트입니다.
-형상관리는 GitLab 대신 GitHub를 사용합니다.
+회사 실무 스택(PHP8 + Laravel 컨테이너, 웹서버, MariaDB)을 로컬 Docker 환경으로 재현한 프로젝트입니다.
+웹서버는 처음엔 Apache로 시작했다가 nginx + PHP-FPM 구조로 전환했습니다. 형상관리는 GitLab 대신 GitHub를 사용합니다.
 
 `dev_steeljoon/dev_laravel/` 위치에 있으며, 다른 언어/스택 개발환경(예: `dev_python/`)은
 상위 `dev_steeljoon/` 아래 형제 디렉토리로 분리해서 운영합니다.
@@ -13,12 +13,15 @@
 ├── docker-compose.yml
 ├── .env.example
 ├── docker/
-│   └── php/
-│       ├── Dockerfile          # PHP8.2 + Apache + Laravel
-│       ├── apache-vhost.conf   # DocumentRoot -> public/
-│       └── entrypoint.sh       # 최초 구동 시 Laravel 프로젝트 자동 생성
+│   ├── php/
+│   │   ├── Dockerfile          # PHP8.2-FPM + Laravel (웹서버 없음, php-fpm만 실행)
+│   │   └── entrypoint.sh       # 최초 구동 시 Laravel 프로젝트 자동 생성
+│   └── nginx/
+│       └── default.conf        # DocumentRoot -> public/, .php는 app:9000으로 fastcgi_pass
 └── src/                        # Laravel 프로젝트가 생성되는 위치 (최초 1회는 비어있음)
 ```
+
+`nginx` 컨테이너가 80번 포트를 받아서 정적 파일은 직접 서빙하고, `.php` 요청만 `app` 컨테이너(PHP-FPM, 9000번 포트)로 넘깁니다. `apache-vhost.conf`는 예전 Apache 구조에서 쓰던 파일로 지금은 어디서도 참조하지 않습니다.
 
 ## 사전 준비
 
@@ -53,7 +56,8 @@
 4. 로그 확인 / 종료
 
    ```bash
-   docker compose logs -f app
+   docker compose logs -f app     # PHP-FPM 쪽 로그 (마이그레이션, 에러 등)
+   docker compose logs -f nginx   # 웹서버 접속 로그
    docker compose down
    ```
 
@@ -139,5 +143,6 @@ GitHub Actions가 SSH로 운영 서버에 접속해 `git pull` → `composer ins
 ## 참고
 
 - GitLab 대신 GitHub + GitHub Actions로 형상관리와 배포를 구성했습니다.
+- 웹서버는 Apache에서 nginx + PHP-FPM 구조로 바꿨습니다. `docker/php/apache-vhost.conf`는 예전 흔적으로 더 이상 쓰이지 않습니다.
 - 컨테이너 안에서 artisan 명령을 쓰려면: `docker compose exec app php artisan <command>`
 - hosts 파일 수정, GitHub Secrets 값 입력은 파일로 대신할 수 없어 위 안내대로 직접 해야 합니다.
