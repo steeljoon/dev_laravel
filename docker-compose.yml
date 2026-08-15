@@ -22,7 +22,6 @@ services:
     volumes:
       - certbot_etc:/etc/letsencrypt
       - certbot_www:/var/www/certbot
-    entrypoint: "true"
 
   app:
     build:
