@@ -1,6 +1,9 @@
 # 로컬 환경변수
 .env
 
+# 로컬 전용 docker-compose 오버라이드 (예: DB 포트 노출 등)
+docker-compose.override.yml
+
 # Laravel 프로젝트 (컨테이너 최초 구동 시 자동 생성됨)
 /src/vendor
 /src/node_modules
