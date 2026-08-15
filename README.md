@@ -146,3 +146,4 @@ GitHub Actions가 SSH로 운영 서버에 접속해 `git pull` → `composer ins
 - 웹서버는 Apache에서 nginx + PHP-FPM 구조로 바꿨습니다. `docker/php/apache-vhost.conf`는 예전 흔적으로 더 이상 쓰이지 않습니다.
 - 컨테이너 안에서 artisan 명령을 쓰려면: `docker compose exec app php artisan <command>`
 - hosts 파일 수정, GitHub Secrets 값 입력은 파일로 대신할 수 없어 위 안내대로 직접 해야 합니다.
+- 2026-08-16: steeljoon.store HTTPS 배포 및 GitHub Actions 자동 배포 파이프라인 동작 확인.
