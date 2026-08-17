@@ -30,7 +30,12 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
             git pull origin main
             docker compose up -d --build
-            docker compose exec -T nginx nginx -s reload
+            # nginx 설정 파일(default.conf, ssl.conf)은 파일 단위로 bind mount 되어 있는데,
+            # git pull이 파일을 그 자리에서 덮어쓰지 않고 새 파일로 교체(unlink+생성)하기 때문에
+            # 기존 컨테이너의 마운트는 옛 파일(inode)을 계속 붙잡고 있게 된다.
+            # "nginx -s reload"는 이 상태를 못 고치므로, nginx 컨테이너를 강제로 재생성해서
+            # 마운트를 새로 맺어준다.
+            docker compose up -d --force-recreate nginx
             docker compose exec -T app php artisan migrate --force
             docker compose exec -T app php artisan config:cache
             docker compose exec -T app php artisan route:cache
