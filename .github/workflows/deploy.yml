@@ -36,6 +36,13 @@ jobs:
             # "nginx -s reload"는 이 상태를 못 고치므로, nginx 컨테이너를 강제로 재생성해서
             # 마운트를 새로 맺어준다.
             docker compose up -d --force-recreate nginx
+            # app(PHP-FPM) 컨테이너도 마찬가지 이유로 재생성이 필요하다.
+            # git pull로 routes/web.php 같은 소스 파일이 바뀌어도, 이미 떠 있던 PHP-FPM
+            # 워커 프로세스는 realpath_cache/OPcache 때문에 예전 상태(예: 오래된 라우트 캐시
+            # 파일이 여전히 존재한다고 착각하는 것)를 계속 들고 있을 수 있다.
+            # "php artisan route:clear/cache"만으로는 이미 떠 있는 워커까지는 못 고치므로,
+            # 컨테이너 자체를 재생성해서 워커를 완전히 새로 띄운다.
+            docker compose up -d --force-recreate app
             docker compose exec -T app php artisan migrate --force
             docker compose exec -T app php artisan config:cache
             docker compose exec -T app php artisan route:cache
