@@ -131,14 +131,16 @@ jQuery CDN 스크립트 태그가 자동으로 삽입됩니다. 다른 뷰에서
 ```bash
 git pull origin main
 docker compose up -d --build
-docker compose exec -T nginx nginx -s reload
+docker compose up -d --force-recreate nginx
+docker compose up -d --force-recreate app
 docker compose exec -T app php artisan migrate --force
 docker compose exec -T app php artisan config:cache
-docker compose exec -T app php artisan route:cache
+docker compose exec -T app php artisan route:clear
 docker compose exec -T app php artisan view:cache
 ```
 
-`nginx -s reload` 단계가 중요합니다. `docker/nginx/*.conf`처럼 컨테이너에 그대로 마운트해서 쓰는 파일은 내용만 바뀌었을 뿐 컨테이너 자체 정의는 안 바뀌기 때문에, `docker compose up -d`만으로는 nginx가 새 설정을 읽지 않습니다. 이 단계가 그걸 강제로 다시 읽게 만듭니다.
+- **nginx / app 강제 재생성**: `docker/nginx/*.conf`처럼 컨테이너에 파일 단위로 마운트해서 쓰는 파일은, `git pull`이 파일을 그 자리에서 덮어쓰지 않고 새 파일로 교체(unlink+생성)하기 때문에 기존 컨테이너의 마운트가 옛 파일을 계속 붙잡고 있게 됩니다. `nginx -s reload`로는 이 상태가 고쳐지지 않아 컨테이너 자체를 재생성합니다. `app` 컨테이너도 같은 이유로, 그리고 PHP-FPM 워커의 캐시 상태를 완전히 새로 시작하기 위해 재생성합니다.
+- **route:cache를 쓰지 않는 이유**: `/laravel` 경로는 nginx가 `SCRIPT_NAME`을 `/laravel/index.php`로 지정해 Laravel이 base path를 스스로 계산하게 만드는 방식을 씁니다. 이 상태에서 `route:cache`로 라우트를 컴파일하면 `/` 라우트의 메서드 매칭이 깨져서, 정상적인 GET 요청이 405 Method Not Allowed로 응답하는 문제가 실제로 발생했습니다(`route:clear`만 해주면 즉시 정상화됨을 확인). 그래서 배포 시 캐시 대신 `route:clear`로 캐시가 없는 상태를 유지합니다. 라우트 수가 적어 캐시하지 않아도 성능 영향은 미미합니다.
 
 1. 배포용 SSH 키 생성 (로컬 아무 터미널에서)
 
@@ -185,3 +187,4 @@ docker compose exec -T app php artisan view:cache
 - hosts 파일 수정, GitHub Secrets 값 입력은 파일로 대신할 수 없어 위 안내대로 직접 해야 합니다.
 - 2026-08-16: steeljoon.store HTTPS 배포 및 GitHub Actions 자동 배포 파이프라인 동작 확인.
 - 2026-08-17: `api.steeljoon.test`/`api.steeljoon.store`를 `/laravel`, `/python` 경로 기반 게이트웨이 구조로 재구성. `laravel.test` 도메인은 더 이상 쓰지 않습니다.
+- 2026-08-18: 배포 시 `/laravel` 경로에서 간헐적으로 405 Method Not Allowed가 발생하던 문제의 원인을 `route:cache`로 특정. 배포 스크립트에서 `route:cache`를 제거하고 `route:clear`로 대체.
