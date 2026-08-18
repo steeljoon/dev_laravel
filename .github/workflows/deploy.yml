@@ -45,5 +45,12 @@ jobs:
             docker compose up -d --force-recreate app
             docker compose exec -T app php artisan migrate --force
             docker compose exec -T app php artisan config:cache
-            docker compose exec -T app php artisan route:cache
+            # route:cache는 일부러 사용하지 않는다.
+            # /laravel 경로는 nginx가 SCRIPT_NAME을 /laravel/index.php로 속여서
+            # Laravel이 base path("/laravel")를 스스로 계산하게 만드는 방식인데,
+            # 라우트를 캐시(컴파일)하면 이 서브패스 요청에서 "/" 라우트의 메서드
+            # 매칭이 깨져 정상적인 GET 요청도 405 Method Not Allowed로 응답하는
+            # 문제가 실제로 재현됨 (route:clear만 해주면 즉시 정상화됨을 확인).
+            # 캐시 없이도 라우트 개수가 적어 성능 영향은 미미하므로 캐시하지 않는다.
+            docker compose exec -T app php artisan route:clear
             docker compose exec -T app php artisan view:cache
