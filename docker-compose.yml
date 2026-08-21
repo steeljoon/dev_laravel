@@ -46,6 +46,11 @@ services:
     image: mariadb:10.11
     container_name: laravel_db
     restart: unless-stopped
+    ports:
+      # 127.0.0.1로만 묶어서, 이 컴퓨터(또는 운영 서버) 자기 자신만 접근 가능하게 한다.
+      # 로컬: DBeaver 등에서 바로 localhost:3306으로 접속.
+      # 운영: 인터넷에는 노출하지 않고, SSH 터널을 거쳐야만 접속 가능.
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_secret}
       MYSQL_DATABASE: ${DB_DATABASE:-laravel}
