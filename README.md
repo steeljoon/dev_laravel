@@ -100,7 +100,7 @@ Docker나 이 프로젝트 파일로는 hosts 등록을 할 수 없고, Windows�
 `steeljoon.test`(로컬)/`steeljoon.store`(운영)는 프로젝트마다 서브도메인을 하나씩 쓰는 구조로 되어 있습니다. 나중에 다른 토이 프로젝트(예: 버스 경로 서비스)가 추가되면, `default.conf`/`ssl.conf`에 그 프로젝트만의 서버 블록(`bus_navi.steeljoon.test` 등)을 하나 더 추가하는 방식으로 계속 확장합니다.
 
 - **`steeljoon.test`/`steeljoon.store` (루트 도메인)**: 실제 서비스로 보내지 않고, 어떤 서브도메인들이 있는지 안내하는 JSON만 응답합니다.
-- **`map.steeljoon.test`/`map.steeljoon.store`**: 이 저장소(지하철 무장애 경로 안내)의 Laravel 앱(`src/`)으로 연결됩니다. 서브도메인이라 이 앱은 자기가 그냥 도메인 루트(`/`)에서 돌고 있다고 알면 되고, 경로 기반 게이트웨이에서 썼던 것 같은 base path를 속이는 트릭이 필요 없습니다. 그래서 `route:cache`도 안전하게 쓸 수 있습니다.
+- **`map.steeljoon.test`/`map.steeljoon.store`**: 이 저장소(지하철 무장애 경로 안내)의 Laravel 앱(`src/`)으로 연결됩니다. 서브도메인이라 이 앱은 자기가 그냥 도메인 루트(`/`)에서 돌고 있다고 알면 되고, `route:cache`도 그대로 사용합니다.
 
 `default.conf`(로컬)와 `ssl.conf`(운영)는 이 구조를 반드시 동일하게 유지해야 합니다. 한쪽만 고치면 로컬과 운영 동작이 어긋나므로, 라우팅 관련 수정은 항상 두 파일에 같이 반영합니다.
 
@@ -146,7 +146,7 @@ docker compose exec -T app php artisan view:cache
 ```
 
 - **nginx / app 강제 재생성**: `docker/nginx/*.conf`처럼 컨테이너에 파일 단위로 마운트해서 쓰는 파일은, `git pull`이 파일을 그 자리에서 덮어쓰지 않고 새 파일로 교체(unlink+생성)하기 때문에 기존 컨테이너의 마운트가 옛 파일을 계속 붙잡고 있게 됩니다. `nginx -s reload`로는 이 상태가 고쳐지지 않아 컨테이너 자체를 재생성합니다. `app` 컨테이너도 같은 이유로, 그리고 PHP-FPM 워커의 캐시 상태를 완전히 새로 시작하기 위해 재생성합니다.
-- **route:cache**: 서브도메인 방식으로 바뀌기 전에는 nginx가 `SCRIPT_NAME`을 속여서 base path를 계산하게 만드는 방식을 썼는데, 그 상태에서 `route:cache`를 쓰면 `/` 라우트의 메서드 매칭이 깨져 405 Method Not Allowed가 나는 문제가 있었습니다. 지금은 서브도메인 방식이라 이 문제의 원인 자체가 없어져서 다시 `route:cache`를 씁니다.
+- **route:cache**: 서브도메인 방식이라 이 앱은 도메인 루트(`/`)에서 정상적으로 동작하므로, 배포 때마다 `route:cache`로 라우트를 캐시합니다.
 
 1. 배포용 SSH 키 생성 (로컬 아무 터미널에서)
 
@@ -189,9 +189,5 @@ docker compose exec -T app php artisan view:cache
 
 - GitHub + GitHub Actions로 형상관리와 배포를 구성했습니다.
 - 컨테이너 안에서 artisan 명령을 쓰려면: `docker compose exec app php artisan <command>`
-- `SESSION_DRIVER`는 `entrypoint.sh`에서 항상 `file`로 고정합니다. Laravel 최신 버전 기본값인 `database`로 두면 sessions 테이블이 기본 스캐폴드에 없어 500 에러가 나는 문제가 있었습니다.
+- `SESSION_DRIVER`는 `entrypoint.sh`에서 항상 `file`로 고정합니다. Laravel 기본값인 `database`로 두면 sessions 테이블이 없어 500 에러가 납니다.
 - hosts 파일 수정, GitHub Secrets 값 입력은 파일로 대신할 수 없어 위 안내대로 직접 해야 합니다.
-- 2026-08-16: steeljoon.store HTTPS 배포 및 GitHub Actions 자동 배포 파이프라인 동작 확인.
-- 2026-08-17: `api.steeljoon.test`/`api.steeljoon.store`를 `/laravel`, `/python` 경로 기반 게이트웨이 구조로 재구성.
-- 2026-08-18: 배포 시 `/laravel` 경로에서 간헐적으로 405 Method Not Allowed가 발생하던 문제의 원인을 `route:cache`로 특정. 배포 스크립트에서 `route:cache`를 제거하고 `route:clear`로 대체.
-- 2026-08-22: 저장소 이름을 `dev_laravel`에서 첫 토이 프로젝트 이름인 `map`으로 변경. 앞으로 프로젝트가 늘어나도 nginx와 MariaDB 서버는 계속 공유하고, 프로젝트마다 저장소·`app` 컨테이너·DB 계정만 새로 추가하는 방식으로 확장하기로 함. 라우팅도 경로 기반 게이트웨이 대신 서브도메인 방식(`map.steeljoon.store`)으로 결정. SCRIPT_NAME으로 base path를 속이는 트릭이 필요 없어져 `route:cache`를 다시 쓸 수 있게 됨. 인증서는 Cafe24가 DNS-01 자동화를 지원하지 않아 와일드카드 대신 `certbot --expand`로 서브도메인을 하나씩 추가하는 방식으로 결정.
