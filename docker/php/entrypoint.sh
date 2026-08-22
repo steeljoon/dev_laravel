@@ -19,8 +19,8 @@ composer install --no-interaction --optimize-autoloader
 sed -i "s/^DB_CONNECTION=.*/DB_CONNECTION=mysql/" /var/www/html/.env
 sed -i "s/^DB_HOST=.*/DB_HOST=${DB_HOST:-db}/" /var/www/html/.env
 sed -i "s/^DB_PORT=.*/DB_PORT=${DB_PORT:-3306}/" /var/www/html/.env
-sed -i "s/^DB_DATABASE=.*/DB_DATABASE=${DB_DATABASE:-laravel}/" /var/www/html/.env
-sed -i "s/^DB_USERNAME=.*/DB_USERNAME=${DB_USERNAME:-laravel}/" /var/www/html/.env
+sed -i "s/^DB_DATABASE=.*/DB_DATABASE=${DB_DATABASE:-map}/" /var/www/html/.env
+sed -i "s/^DB_USERNAME=.*/DB_USERNAME=${DB_USERNAME:-map}/" /var/www/html/.env
 sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASSWORD:-secret}/" /var/www/html/.env
 
 # APP_KEY가 비어 있을 때만 새로 만든다 (매번 새로 만들면 재시작할 때마다 기존 세션/쿠키가 깨짐)
