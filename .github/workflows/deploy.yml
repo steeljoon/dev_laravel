@@ -1,7 +1,6 @@
 name: Deploy to Production
 
 # main 브랜치에 push되면 운영 서버에 배포합니다.
-# (회사에서 GitLab CI로 하던 것을 GitHub Actions로 옮긴 버전)
 on:
   push:
     branches:
@@ -45,13 +44,7 @@ jobs:
             docker compose up -d --force-recreate app
             docker compose exec -T app php artisan migrate --force
             docker compose exec -T app php artisan config:cache
-            # 예전에는 여기서 route:cache 대신 route:clear를 썼다. 당시엔 nginx가
-            # SCRIPT_NAME을 속여서 서브패스(/map)에 base path를 맞추는
-            # 방식을 썼는데, 그 상태에서 route:cache를 하면 "/" 라우트의 메서드
-            # 매칭이 깨져 405 Method Not Allowed가 나는 문제가 있었다.
-            # 지금은 서브도메인(map.steeljoon.store) 방식으로 바뀌어서
-            # 이 앱이 그냥 도메인 루트에서 정상적으로 돈다고 알기 때문에, 이 문제의
-            # 원인 자체가 없어졌다. 그래서 route:cache를 다시 쓴다.
-            # (배포 후 GET 요청이 정상인지 한 번은 직접 확인해볼 것)
+            # 서브도메인(map.steeljoon.store) 방식이라 이 앱은 도메인 루트에서
+            # 정상적으로 돌고 있다고 알면 되므로, route:cache를 그대로 쓴다.
             docker compose exec -T app php artisan route:cache
             docker compose exec -T app php artisan view:cache

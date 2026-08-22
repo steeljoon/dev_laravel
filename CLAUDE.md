@@ -34,7 +34,7 @@ map/
 1. `artisan` 파일이 없으면 `composer create-project laravel/laravel`로 최초 1회 생성
 2. `.env`의 `DB_*` 값을 docker-compose 환경변수(MariaDB 접속 정보)로 덮어씀
 3. `APP_KEY`는 비어있을 때만 생성 (매번 새로 만들면 재시작마다 세션이 깨짐)
-4. **`SESSION_DRIVER`는 반드시 `file`로 고정** — Laravel 최신 버전 기본값인 `database`로 두면 sessions 테이블 마이그레이션이 기본 스캐폴드에 없어서 500 에러가 나고, `php artisan session:table`로 자동 생성하려 하면 재실행 시 "Migration already exists"로 죽어서 컨테이너가 무한 재시작하는 문제가 있었음. 이 방식으로 근본적으로 회피함.
+4. **`SESSION_DRIVER`는 반드시 `file`로 고정** — Laravel 기본값인 `database`는 sessions 테이블이 기본 스캐폴드에 없어 500 에러가 남
 5. 매번 `php artisan migrate --force`로 MariaDB에 마이그레이션 적용 (users/cache/jobs 테이블)
 6. jQuery는 CDN 방식으로 `resources/views/welcome.blade.php`에 자동 삽입 (npm/Vite 없이 legacy 방식 사용)
 7. 마지막 줄은 `exec php-fpm` — 웹서버(nginx)가 별도 컨테이너로 분리되어 있어 이 컨테이너는 PHP-FPM 프로세스만 포그라운드로 띄움
@@ -44,10 +44,7 @@ map/
 `steeljoon.test`(로컬)/`steeljoon.store`(운영)는 프로젝트마다 서브도메인을 하나씩 쓰는
 구조입니다. `map.steeljoon.test`/`map.steeljoon.store`가 이 저장소의
 Laravel 앱으로 연결되고, 서브도메인이라 이 앱은 자기가 그냥 도메인 루트("/")에서 돌고
-있다고 알면 됩니다. 예전에 경로 기반 게이트웨이(`api.steeljoon.store/map/`)를 쓸
-때는 SCRIPT_NAME으로 base path를 속이는 트릭이 필요했고, 그 상태에서 `route:cache`를
-쓰면 405 오류가 나는 문제가 있었는데, 서브도메인 방식으로 바뀌면서 이 문제가 사라져
-`route:cache`를 다시 쓸 수 있습니다.
+있다고 알면 됩니다. base path를 속이는 트릭이 필요 없어 `route:cache`도 그대로 씁니다.
 
 새 토이 프로젝트가 생기면 `default.conf`/`ssl.conf`에 서버 블록을 하나 더 추가하고,
 운영은 Cafe24 DNS에 그 서브도메인 A레코드를 등록한 뒤 `certbot --expand`로 인증서에

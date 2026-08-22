@@ -28,10 +28,8 @@ if grep -q "^APP_KEY=$" /var/www/html/.env; then
     php artisan key:generate --force
 fi
 
-# Laravel 최신 버전의 기본값은 SESSION_DRIVER=database인데, 정작 sessions 테이블
-# 마이그레이션은 기본 스캐폴드에 없어서 그대로 두면 세션 접근 시 500 에러가 난다.
-# php artisan session:table로 매번 해결하려 했더니 재실행 시 "Migration already exists"로
-# 죽는 문제가 있어서, 회사 LAMP 스택과 더 비슷한 파일 기반 세션으로 바꿔서 근본적으로 피한다.
+# Laravel 기본값인 SESSION_DRIVER=database는 sessions 테이블이 기본 스캐폴드에
+# 없어 세션 접근 시 500 에러가 나므로, 파일 기반 세션을 쓴다.
 sed -i "s/^SESSION_DRIVER=.*/SESSION_DRIVER=file/" /var/www/html/.env
 
 # create-project 과정에서는 sqlite 기준으로 한 번 migrate가 돌지만,
