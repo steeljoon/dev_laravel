@@ -1,7 +1,7 @@
 services:
   nginx:
     image: nginx:alpine
-    container_name: laravel_nginx
+    container_name: map_nginx
     restart: unless-stopped
     ports:
       - "${APP_PORT:-80}:80"
@@ -18,7 +18,7 @@ services:
 
   certbot:
     image: certbot/certbot
-    container_name: laravel_certbot
+    container_name: map_certbot
     volumes:
       - certbot_etc:/etc/letsencrypt
       - certbot_www:/var/www/certbot
@@ -26,15 +26,15 @@ services:
   app:
     build:
       context: ./docker/php
-    container_name: laravel_app
+    container_name: map_app
     restart: unless-stopped
     volumes:
       - ./src:/var/www/html
     environment:
       DB_HOST: db
       DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE:-laravel}
-      DB_USERNAME: ${DB_USERNAME:-laravel}
+      DB_DATABASE: ${DB_DATABASE:-map}
+      DB_USERNAME: ${DB_USERNAME:-map}
       DB_PASSWORD: ${DB_PASSWORD:-secret}
     depends_on:
       db:
@@ -44,7 +44,7 @@ services:
 
   db:
     image: mariadb:10.11
-    container_name: laravel_db
+    container_name: map_db
     restart: unless-stopped
     ports:
       # 127.0.0.1로만 묶어서, 이 컴퓨터(또는 운영 서버) 자기 자신만 접근 가능하게 한다.
@@ -53,8 +53,8 @@ services:
       - "127.0.0.1:${DB_PORT:-3306}:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_secret}
-      MYSQL_DATABASE: ${DB_DATABASE:-laravel}
-      MYSQL_USER: ${DB_USERNAME:-laravel}
+      MYSQL_DATABASE: ${DB_DATABASE:-map}
+      MYSQL_USER: ${DB_USERNAME:-map}
       MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
     volumes:
       - db_data:/var/lib/mysql

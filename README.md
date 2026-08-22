@@ -1,10 +1,14 @@
-# 로컬 개발 환경 (PHP8 + Laravel + Nginx + MariaDB)
+# map - 수도권 지하철 무장애 경로 안내 (PHP8 + Laravel + Nginx + MariaDB)
 
-회사 실무 스택(PHP8 + Laravel 컨테이너, 웹서버, MariaDB)을 로컬 Docker 환경으로 재현한 프로젝트입니다.
-웹서버는 처음엔 Apache로 시작했다가 nginx + PHP-FPM 구조로 전환했습니다. 형상관리는 GitLab 대신 GitHub를 사용합니다.
+수도권 지하철 Open API를 활용해, 유모차/휠체어 등의 이유로 엘리베이터·에스컬레이터를 필수로
+이용해야 하는 사람들에게 A역에서 B역까지의 최적 경로를 안내하는 서비스입니다. 메인 서버는
+라라벨(PHP8 + Laravel 컨테이너, nginx + PHP-FPM 웹서버, MariaDB)로 구성했습니다.
+형상관리는 GitHub를 사용합니다.
 
-`dev_steeljoon/dev_laravel/` 위치에 있으며, 다른 언어/스택 개발환경(예: `dev_python/`)은
-상위 `dev_steeljoon/` 아래 형제 디렉토리로 분리해서 운영합니다.
+`dev_steeljoon/map/` 위치에 있으며, 같은 라라벨 스택으로 만들 다른 토이 프로젝트나
+다른 언어 스택 프로젝트(예: `dev_python/`)는 상위 `dev_steeljoon/` 아래 형제 디렉토리로
+분리해서 운영합니다. 프로젝트별로 저장소가 완전히 독립되어 있고, nginx(서브도메인 라우팅)와
+MariaDB 서버만 여러 프로젝트가 공유하는 구조입니다 (아래 "서브도메인 라우팅 구조" 참고).
 
 ## 구조
 
@@ -15,10 +19,9 @@
 ├── docker/
 │   ├── php/
 │   │   ├── Dockerfile          # PHP8.2-FPM + Laravel (웹서버 없음, php-fpm만 실행)
-│   │   ├── entrypoint.sh       # 최초 구동 시 Laravel 프로젝트 자동 생성
-│   │   └── apache-vhost.conf   # 예전 Apache 구조 흔적, 지금은 어디서도 참조하지 않음
+│   │   └── entrypoint.sh       # 최초 구동 시 Laravel 프로젝트 자동 생성
 │   └── nginx/
-│       ├── default.conf        # 로컬용. api.steeljoon.test 게이트웨이 + 운영 도메인 HTTP→HTTPS 리다이렉트
+│       ├── default.conf        # 로컬용. 서브도메인별 서버 블록 + 운영 도메인 HTTP→HTTPS 리다이렉트
 │       └── ssl.conf            # 운영 서버 전용 HTTPS 설정 (아래 "운영 서버 배포" 참고)
 ├── src/                         # Laravel 프로젝트가 생성되는 위치 (최초 1회는 비어있음)
 └── .github/workflows/deploy.yml # main push 시 운영 서버 자동 배포
@@ -54,9 +57,8 @@
 
    | 주소 | 응답 |
    |---|---|
-   | http://api.steeljoon.test/ | 사용 가능한 경로 안내 JSON |
-   | http://api.steeljoon.test/laravel/ | 실제 Laravel 앱 (welcome 화면) |
-   | http://api.steeljoon.test/python/ | 자리표시 JSON (Python 서비스는 아직 붙지 않음) |
+   | http://steeljoon.test/ | 프로젝트 목록 안내 JSON |
+   | http://map.steeljoon.test/ | 실제 Laravel 앱 (welcome 화면) |
 
    - DB(호스트에서 접속 시): `localhost:3306`, 계정은 `.env`의 `DB_USERNAME` / `DB_PASSWORD`
    - DB(컨테이너 간 접속 시): host는 `db`
@@ -69,36 +71,40 @@
    docker compose down
    ```
 
-## 로컬 도메인 설정 (api.steeljoon.test)
+## 로컬 도메인 설정 (steeljoon.test)
 
 `.test`는 Laravel 진영(Valet, Herd 등)에서 로컬 개발용으로 쓰는 표준 TLD입니다. 실제 등록된
 도메인과 충돌하지 않고, `.dev`처럼 브라우저가 강제로 HTTPS를 요구하지도 않아 로컬 환경에 적합합니다.
-운영 도메인이 `steeljoon.store`이기 때문에, 로컬에서도 같은 이름 규칙을 따라 `api.steeljoon.test`를 씁니다.
+운영 도메인이 `steeljoon.store`이기 때문에, 로컬에서도 같은 이름 규칙을 따라 `steeljoon.test`를 씁니다.
 Docker나 이 프로젝트 파일로는 hosts 등록을 할 수 없고, Windows에서 직접 해야 하는 작업입니다.
 
 1. 메모장을 **관리자 권한으로 실행** (시작 메뉴에서 메모장 우클릭 → 관리자 권한으로 실행)
 2. `C:\Windows\System32\drivers\etc\hosts` 파일 열기
-3. 맨 아래에 다음 줄 추가 후 저장
+3. 맨 아래에 다음 줄들을 추가 후 저장
 
    ```
-   127.0.0.1 api.steeljoon.test
+   127.0.0.1 steeljoon.test
+   127.0.0.1 map.steeljoon.test
    ```
 
-4. `docker compose up -d`로 컨테이너가 떠 있는 상태에서 브라우저로 http://api.steeljoon.test/ 접속 확인
+   서브도메인 방식이라, 새 토이 프로젝트가 생길 때마다 그 프로젝트의 서브도메인을 여기에 한 줄씩 추가해야 합니다.
+
+4. `docker compose up -d`로 컨테이너가 떠 있는 상태에서 브라우저로 http://map.steeljoon.test/ 접속 확인
 
    80번 포트가 이미 다른 프로그램(IIS, 사내 VPN 클라이언트 등)에 쓰이고 있으면 컨테이너가
    뜨지 않습니다. 이때는 `netstat -ano | findstr :80`으로 확인하고, `.env`의 `APP_PORT`를
-   8080 등으로 바꾼 뒤 http://api.steeljoon.test:8080 처럼 포트를 붙여서 접속하면 됩니다.
+   8080 등으로 바꾼 뒤 http://map.steeljoon.test:8080 처럼 포트를 붙여서 접속하면 됩니다.
 
-## API 게이트웨이 구조 (`/laravel`, `/python`)
+## 서브도메인 라우팅 구조
 
-`api.steeljoon.test`(로컬)와 `api.steeljoon.store`(운영)는 하나의 도메인 아래에서 경로(path)로 서비스를 구분하는 게이트웨이 형태로 되어 있습니다.
+`steeljoon.test`(로컬)/`steeljoon.store`(운영)는 프로젝트마다 서브도메인을 하나씩 쓰는 구조로 되어 있습니다. 나중에 다른 토이 프로젝트(예: 버스 경로 서비스)가 추가되면, `default.conf`/`ssl.conf`에 그 프로젝트만의 서버 블록(`bus_navi.steeljoon.test` 등)을 하나 더 추가하는 방식으로 계속 확장합니다.
 
-- **`/` (루트)**: 실제 서비스로 보내지 않고, 어떤 경로를 쓸 수 있는지 안내하는 JSON만 응답합니다. 방문자가 도메인만 입력했을 때 라라벨 화면이 뜨는 것을 막기 위한 의도적인 설계입니다.
-- **`/laravel/`**: 이 저장소의 Laravel 앱(`src/`)으로 연결됩니다. nginx가 `SCRIPT_NAME`을 `/laravel/index.php`로 지정해서 넘기면, Laravel(Symfony)이 요청 URI와 SCRIPT_NAME을 비교해 자기 base path를 `/laravel`로 스스로 계산합니다. 이 방식 덕분에 nginx 쪽 변수를 억지로 덮어쓰지 않고도 `/laravel/xxx` 형태의 하위 경로가 안정적으로 라우팅됩니다.
-- **`/python/`**: 아직 실제 서비스가 없어 자리표시 JSON만 응답합니다. 나중에 Python 컨테이너를 추가하면 이 위치에 `proxy_pass`로 교체하면 됩니다.
+- **`steeljoon.test`/`steeljoon.store` (루트 도메인)**: 실제 서비스로 보내지 않고, 어떤 서브도메인들이 있는지 안내하는 JSON만 응답합니다.
+- **`map.steeljoon.test`/`map.steeljoon.store`**: 이 저장소(지하철 무장애 경로 안내)의 Laravel 앱(`src/`)으로 연결됩니다. 서브도메인이라 이 앱은 자기가 그냥 도메인 루트(`/`)에서 돌고 있다고 알면 되고, 경로 기반 게이트웨이에서 썼던 것 같은 base path를 속이는 트릭이 필요 없습니다. 그래서 `route:cache`도 안전하게 쓸 수 있습니다.
 
 `default.conf`(로컬)와 `ssl.conf`(운영)는 이 구조를 반드시 동일하게 유지해야 합니다. 한쪽만 고치면 로컬과 운영 동작이 어긋나므로, 라우팅 관련 수정은 항상 두 파일에 같이 반영합니다.
+
+인증서는 프로젝트가 늘어날 때마다 `certbot --expand`로 그 서브도메인을 추가해야 하고, DNS(Cafe24)에도 그 서브도메인의 A레코드를 등록해야 합니다. 자세한 내용은 아래 "운영 도메인 구조" 참고.
 
 ## jQuery
 
@@ -116,7 +122,7 @@ jQuery CDN 스크립트 태그가 자동으로 삽입됩니다. 다른 뷰에서
 
    ```bash
    git add .
-   git commit -m "Initial commit: PHP8 + Laravel + Apache + MariaDB dev env"
+   git commit -m "Initial commit: PHP8 + Laravel + Nginx + MariaDB dev env"
    git branch -M main
    git remote add origin https://github.com/<github-id>/<repo-name>.git
    git push -u origin main
@@ -135,12 +141,12 @@ docker compose up -d --force-recreate nginx
 docker compose up -d --force-recreate app
 docker compose exec -T app php artisan migrate --force
 docker compose exec -T app php artisan config:cache
-docker compose exec -T app php artisan route:clear
+docker compose exec -T app php artisan route:cache
 docker compose exec -T app php artisan view:cache
 ```
 
 - **nginx / app 강제 재생성**: `docker/nginx/*.conf`처럼 컨테이너에 파일 단위로 마운트해서 쓰는 파일은, `git pull`이 파일을 그 자리에서 덮어쓰지 않고 새 파일로 교체(unlink+생성)하기 때문에 기존 컨테이너의 마운트가 옛 파일을 계속 붙잡고 있게 됩니다. `nginx -s reload`로는 이 상태가 고쳐지지 않아 컨테이너 자체를 재생성합니다. `app` 컨테이너도 같은 이유로, 그리고 PHP-FPM 워커의 캐시 상태를 완전히 새로 시작하기 위해 재생성합니다.
-- **route:cache를 쓰지 않는 이유**: `/laravel` 경로는 nginx가 `SCRIPT_NAME`을 `/laravel/index.php`로 지정해 Laravel이 base path를 스스로 계산하게 만드는 방식을 씁니다. 이 상태에서 `route:cache`로 라우트를 컴파일하면 `/` 라우트의 메서드 매칭이 깨져서, 정상적인 GET 요청이 405 Method Not Allowed로 응답하는 문제가 실제로 발생했습니다(`route:clear`만 해주면 즉시 정상화됨을 확인). 그래서 배포 시 캐시 대신 `route:clear`로 캐시가 없는 상태를 유지합니다. 라우트 수가 적어 캐시하지 않아도 성능 영향은 미미합니다.
+- **route:cache**: 서브도메인 방식으로 바뀌기 전에는 nginx가 `SCRIPT_NAME`을 속여서 base path를 계산하게 만드는 방식을 썼는데, 그 상태에서 `route:cache`를 쓰면 `/` 라우트의 메서드 매칭이 깨져 405 Method Not Allowed가 나는 문제가 있었습니다. 지금은 서브도메인 방식이라 이 문제의 원인 자체가 없어져서 다시 `route:cache`를 씁니다.
 
 1. 배포용 SSH 키 생성 (로컬 아무 터미널에서)
 
@@ -166,9 +172,10 @@ docker compose exec -T app php artisan view:cache
 
 ## 운영 도메인 구조
 
-- **`steeljoon.store` / `www.steeljoon.store`**: 메인 Laravel 사이트. `/` 그대로 라라벨 앱으로 연결됩니다.
-- **`api.steeljoon.store`**: 위 "API 게이트웨이 구조" 절에서 설명한 것과 동일한 구조(`/laravel/`, `/python/`)입니다.
+- **`steeljoon.store` / `www.steeljoon.store`**: `/`에서 프로젝트 목록을 안내하는 JSON만 응답합니다. 실제 서비스는 서브도메인에서 돕니다.
+- **`map.steeljoon.store`**: 위 "서브도메인 라우팅 구조" 절에서 설명한 이 저장소의 Laravel 앱입니다.
 - HTTPS는 Let's Encrypt(certbot) 인증서를 씁니다. 인증서/웹루트는 `docker-compose.yml`의 `certbot_etc`, `certbot_www` 볼륨으로 관리됩니다.
+- `steeljoon.store` 도메인은 Cafe24에서 관리합니다. 새 서브도메인이 생기면 Cafe24 DNS 관리 화면에서 그 서브도메인의 A레코드(운영 서버 IP)를 등록해야 하고, DNS가 반영된 뒤 서버에서 `certbot --expand`로 인증서에 그 서브도메인을 추가해야 합니다. Cafe24는 DNS-01(와일드카드) 자동화를 지원하는 certbot 플러그인이 없어서, 서브도메인이 늘어날 때마다 이 과정을 한 번씩 반복합니다.
 - `ssl.conf`는 로컬에는 인증서가 없어 nginx가 이 파일을 읽으면 죽기 때문에, 기본적으로 로드되지 않습니다. 운영 서버에서만 서버 전용 `docker-compose.override.yml`(이 저장소에는 포함되지 않음, `.gitignore`로 제외)에서 아래처럼 추가로 마운트해서 사용합니다.
 
   ```yaml
@@ -180,11 +187,11 @@ docker compose exec -T app php artisan view:cache
 
 ## 참고
 
-- GitLab 대신 GitHub + GitHub Actions로 형상관리와 배포를 구성했습니다.
-- 웹서버는 Apache에서 nginx + PHP-FPM 구조로 바꿨습니다. `docker/php/apache-vhost.conf`는 예전 흔적으로 더 이상 쓰이지 않습니다.
+- GitHub + GitHub Actions로 형상관리와 배포를 구성했습니다.
 - 컨테이너 안에서 artisan 명령을 쓰려면: `docker compose exec app php artisan <command>`
 - `SESSION_DRIVER`는 `entrypoint.sh`에서 항상 `file`로 고정합니다. Laravel 최신 버전 기본값인 `database`로 두면 sessions 테이블이 기본 스캐폴드에 없어 500 에러가 나는 문제가 있었습니다.
 - hosts 파일 수정, GitHub Secrets 값 입력은 파일로 대신할 수 없어 위 안내대로 직접 해야 합니다.
 - 2026-08-16: steeljoon.store HTTPS 배포 및 GitHub Actions 자동 배포 파이프라인 동작 확인.
-- 2026-08-17: `api.steeljoon.test`/`api.steeljoon.store`를 `/laravel`, `/python` 경로 기반 게이트웨이 구조로 재구성. `laravel.test` 도메인은 더 이상 쓰지 않습니다.
+- 2026-08-17: `api.steeljoon.test`/`api.steeljoon.store`를 `/laravel`, `/python` 경로 기반 게이트웨이 구조로 재구성.
 - 2026-08-18: 배포 시 `/laravel` 경로에서 간헐적으로 405 Method Not Allowed가 발생하던 문제의 원인을 `route:cache`로 특정. 배포 스크립트에서 `route:cache`를 제거하고 `route:clear`로 대체.
+- 2026-08-22: 저장소 이름을 `dev_laravel`에서 첫 토이 프로젝트 이름인 `map`으로 변경. 앞으로 프로젝트가 늘어나도 nginx와 MariaDB 서버는 계속 공유하고, 프로젝트마다 저장소·`app` 컨테이너·DB 계정만 새로 추가하는 방식으로 확장하기로 함. 라우팅도 경로 기반 게이트웨이 대신 서브도메인 방식(`map.steeljoon.store`)으로 결정. SCRIPT_NAME으로 base path를 속이는 트릭이 필요 없어져 `route:cache`를 다시 쓸 수 있게 됨. 인증서는 Cafe24가 DNS-01 자동화를 지원하지 않아 와일드카드 대신 `certbot --expand`로 서브도메인을 하나씩 추가하는 방식으로 결정.
